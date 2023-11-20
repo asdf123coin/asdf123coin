@@ -3,11 +3,6 @@
 - 🌱 I’m currently learning ... Solidy
 - 💞️ I’m looking to collaborate on ... Solana in the future
 - 📫 How to reach me ... here :D
-
-<!---
-asdf123coin/asdf123coin is a ✨ special ✨ repository because its `README.md` (this file) appears on your GitHub profile.
-You can click the Preview link to take a look at your changes.
---->
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.2;
 
@@ -57,3 +52,36 @@ contract AIUSD is ERC20, ReentrancyGuard, Ownable {
         _mint(msg.sender, amount);
         emit Mint(msg.sender, amount);
     }
+
+    function burn(uint256 amount) external nonReentrant {
+        uint256 ratio = getRatio();
+        uint256 paxGoldAmount = amount.mul(ratio).div(pricePrecision);
+        require(paxGoldAmount <= ERC20(paxGold).balanceOf(address(this)), "AIUSD: Insufficient collateral");
+        _burn(msg.sender, amount);
+        emit Burn(msg.sender, amount);
+    }
+
+    function updatePrice() external onlyOwner nonReentrant {
+        uint256 currentPrice = getPrice();
+        require(currentPrice > 0, "AIUSD: Invalid price");
+
+        uint256 delta = currentPrice.mul(pricePrecision).div(lastPrice).sub(pricePrecision);
+        uint256 maxDelta = delta.mul(totalSupply()).div(pricePrecision);
+        uint256 amount = maxDelta.mul(fee).div(10000);
+        uint256 balance = ERC20(paxGold).balanceOf(address(this));
+        require(amount <= balance, "AIUSD: Insufficient collateral");
+
+        lastPrice = currentPrice;
+        _mint(address(this), amount);
+        emit Mint(address(this), amount);
+        emit PriceUpdated(currentPrice);
+    }
+
+    function withdrawCollateral(uint256 amount) external onlyOwner nonReentrant {
+        require(amount > 0, "AIUSD: Invalid amount");
+        uint256 balance = ERC20(paxGold).balanceOf(address(this));
+
+    require(amount <= balance, "AIUSD: Insufficient collateral");
+    ERC20(paxGold).transfer(msg.sender, amount);
+  }
+}
