@@ -28,24 +28,29 @@ contract AIUSD is ERC20, ReentrancyGuard, Ownable {
     event Mint(address indexed to, uint256 amount);
     event Burn(address indexed from, uint256 amount);
     event PriceUpdated(uint256 price);
-
+Descripción: Es el constructor del contrato que inicializa las variables y establece las direcciones de los contratos de Chainlink.
+Parámetros: _priceFeed y _paxGold son las direcciones de los contratos de Chainlink y de PAX Gold respectivamente.
+Acciones: Inicializa las variables priceFeed, paxGold y lastPrice.
     constructor(address _priceFeed, address _paxGold) ERC20("AIUSD", "AIUSD") {
         priceFeed = AggregatorV3Interface(_priceFeed);
         paxGold = _paxGold;
         lastPrice = getPrice();
     }
-
+Descripción: Obtiene el precio actual del feed de Chainlink para PAX Gold y lo convierte al formato necesario.
+Retorno: El precio actual del feed de Chainlink.
     function getPrice() public view returns (uint256) {
         (, int256 price, , ,) = priceFeed.latestRoundData();
         return uint256(price).mul(oraclePrecision).div(pricePrecision);
     }
-
+Descripción: Calcula la relación entre el balance de PAX Gold y el suministro total del token AIUSD.
+Retorno: La relación entre el balance de PAX Gold y el suministro total del token AIUSD.
     function getRatio() public view returns (uint256) {
         uint256 paxGoldBalance = ERC20(paxGold).balanceOf(address(this));
         uint256 totalSupply = totalSupply();
         return paxGoldBalance.mul(pricePrecision).div(totalSupply);
     }
-
+Descripción: Permite a los usuarios crear nuevos tokens AIUSD al depositar PAX Gold como garantía.
+Acciones: Calcula la cantidad de tokens AIUSD a emitir y los entrega al remitente.
     function mint() external nonReentrant {
         uint256 paxGoldBalance = ERC20(paxGold).balanceOf(address(this));
         uint256 ratio = getRatio();
@@ -54,7 +59,9 @@ contract AIUSD is ERC20, ReentrancyGuard, Ownable {
         _mint(msg.sender, amount);
         emit Mint(msg.sender, amount);
     }
-
+Descripción: Permite a los usuarios quemar sus tokens AIUSD para recuperar la cantidad equivalente de PAX Gold.
+Parámetros: amount es la cantidad de tokens AIUSD a quemar.
+Acciones: Calcula la cantidad de PAX Gold a devolver y quema los tokens AIUSD del remitente.
     function burn(uint256 amount) external nonReentrant {
         uint256 ratio = getRatio();
         uint256 paxGoldAmount = amount.mul(ratio).div(pricePrecision);
@@ -62,7 +69,8 @@ contract AIUSD is ERC20, ReentrancyGuard, Ownable {
         _burn(msg.sender, amount);
         emit Burn(msg.sender, amount);
     }
-
+Descripción: Actualiza el precio del token AIUSD basado en el precio actual del feed de Chainlink para PAX Gold.
+Acciones: Calcula la diferencia en el precio, emite nuevos tokens AIUSD si hay cambios significativos y actualiza el último precio conocido.
     function updatePrice() external onlyOwner nonReentrant {
         uint256 currentPrice = getPrice();
         require(currentPrice > 0, "AIUSD: Invalid price");
@@ -78,7 +86,9 @@ contract AIUSD is ERC20, ReentrancyGuard, Ownable {
         emit Mint(address(this), amount);
         emit PriceUpdated(currentPrice);
     }
-
+Descripción: Permite al propietario del contrato retirar PAX Gold depositado como garantía.
+Parámetros: amount es la cantidad de PAX Gold a retirar.
+Acciones: Transfiere la cantidad especificada de PAX Gold desde el contrato a la dirección del propietario.
     function withdrawCollateral(uint256 amount) external onlyOwner nonReentrant {
         require(amount > 0, "AIUSD: Invalid amount");
         uint256 balance = ERC20(paxGold).balanceOf(address(this));
